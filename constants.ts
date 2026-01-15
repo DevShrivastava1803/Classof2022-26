@@ -26,6 +26,14 @@ export const TIMELINE_EVENTS: MemoryEvent[] = [
     align: 'left'
   },
   {
+    year: '2025',
+    title: 'The Final Stretch',
+    description: 'Four years. Countless memories. One unforgettable journey. This isn\'t the end, it\'s just the beginning.',
+    image: 'https://picsum.photos/seed/grad2026/800/600',
+    caption: 'We made it. Class of \'26 🎓',
+    align: 'center'
+  },
+  {
     year: '2026',
     title: 'The Final Stretch',
     description: 'Four years. Countless memories. One unforgettable journey. This isn\'t the end, it\'s just the beginning.',

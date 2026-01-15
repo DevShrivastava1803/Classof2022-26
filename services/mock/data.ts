@@ -103,7 +103,7 @@ export const mockDataService: DataService = {
 
     getMessages: async () => {
         await new Promise(r => setTimeout(r, 400));
-        return messages;
+        return [...messages];
     },
 
     postMessage: async (message) => {
@@ -121,7 +121,7 @@ export const mockDataService: DataService = {
 
     getYearbookMessages: async (studentId) => {
         await new Promise(r => setTimeout(r, 300));
-        return yearbookSignatures[studentId] || [];
+        return [...(yearbookSignatures[studentId] || [])];
     },
 
     signYearbook: async (studentId, text, author) => {

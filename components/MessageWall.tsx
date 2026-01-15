@@ -17,6 +17,7 @@ export const MessageWall: React.FC = () => {
   const [isWriting, setIsWriting] = useState(false);
   const [newMessageText, setNewMessageText] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
 
@@ -40,8 +41,11 @@ export const MessageWall: React.FC = () => {
   const handlePostMessage = async () => {
     if (!newMessageText.trim()) return;
     
-    // Fallback name
-    const finalAuthor = authorName.trim() || "Anonymous";
+    // Determine author name
+    let finalAuthor = "Anonymous";
+    if (!isAnonymous) {
+        finalAuthor = authorName.trim() || "Anonymous";
+    }
 
     const styles: ('paper-1' | 'paper-2' | 'paper-3' | 'paper-4')[] = ['paper-1', 'paper-2', 'paper-3', 'paper-4'];
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
@@ -50,16 +54,21 @@ export const MessageWall: React.FC = () => {
         text: newMessageText,
         author: finalAuthor,
         style: randomStyle,
-        major: user?.name === finalAuthor ? 'Student' : undefined
+        major: (!isAnonymous && user?.name === finalAuthor) ? 'Student' : undefined
     });
 
-    // Update local state immediately (or rely on refetch if needed)
+    // Update local state immediately
     setMessages([newMsg, ...messages]);
 
     setIsWriting(false);
     setNewMessageText('');
-    // Keep author name if logged in, otherwise clear
-    if (!user) setAuthorName('');
+    setIsAnonymous(false);
+    // Reset name to user's name if logged in, otherwise clear
+    if (user) {
+        setAuthorName(user.name);
+    } else {
+        setAuthorName('');
+    }
   };
 
   if (loading) return <div className="text-center py-20 text-gold-500">Loading Wall...</div>;
@@ -105,14 +114,33 @@ export const MessageWall: React.FC = () => {
                 value={newMessageText}
                 onChange={(e) => setNewMessageText(e.target.value)}
               />
-              <input 
-                 type="text"
-                 placeholder="Your Name (Optional)"
-                 className="w-full mt-4 bg-transparent border-b-2 border-stone-200 focus:border-gold-500 focus:outline-none font-sans text-stone-800 p-2 placeholder:text-stone-400"
-                 value={authorName}
-                 onChange={(e) => setAuthorName(e.target.value)}
-                 disabled={!!user} // Disable if logged in, maybe? Or allow override. Let's allow override for now or keeping it simple.
-              />
+              <div className="flex flex-col gap-3 mt-4">
+                  <input 
+                     type="text"
+                     placeholder="Your Name (Optional)"
+                     className={`w-full bg-transparent border-b-2 border-stone-200 focus:border-gold-500 focus:outline-none font-sans text-stone-800 p-2 placeholder:text-stone-400 transition-opacity ${isAnonymous ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
+                     value={authorName}
+                     onChange={(e) => setAuthorName(e.target.value)}
+                     disabled={isAnonymous}
+                  />
+                  
+                  <label className="flex items-center gap-2 cursor-pointer group select-none">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${isAnonymous ? 'bg-gold-500 border-gold-500' : 'border-stone-400 group-hover:border-gold-500'}`}>
+                          {isAnonymous && (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-white">
+                                <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z" clipRule="evenodd" />
+                              </svg>
+                          )}
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        className="hidden" 
+                        checked={isAnonymous} 
+                        onChange={(e) => setIsAnonymous(e.target.checked)} 
+                      />
+                      <span className="text-stone-600 text-sm font-medium">Keep it mysterious (Post Anonymously)</span>
+                  </label>
+              </div>
               <div className="mt-6 flex justify-end">
                  <button 
                     onClick={handlePostMessage}
