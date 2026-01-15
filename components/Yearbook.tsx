@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FILTERS, STUDENTS } from '../constants';
+import { FILTERS } from '../constants';
 import { FadeIn } from './ui/FadeIn';
 import { Student } from '../types';
+import { dataService } from '../services/DataRegistry';
 
 interface Message {
   id: string;
@@ -15,35 +16,42 @@ export const Yearbook: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+
   // Message System State
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
 
-  // Load messages from LocalStorage on mount
   useEffect(() => {
-    const savedMessages = localStorage.getItem('batch26_yearbook_messages');
-    if (savedMessages) {
-      setMessages(JSON.parse(savedMessages));
-    }
+    const loadData = async () => {
+        setLoading(true);
+        const allStudents = await dataService.getAllStudents();
+        setStudents(allStudents);
+        setLoading(false);
+    };
+    loadData();
   }, []);
 
-  const handleSaveMessage = (studentId: string) => {
+  useEffect(() => {
+    if (selectedStudent) {
+        // Load messages for selected student
+        dataService.getYearbookMessages(selectedStudent.id).then((msgs) => {
+            setMessages(msgs);
+        });
+    }
+  }, [selectedStudent]);
+
+  const handleSaveMessage = async (studentId: string) => {
     if (!newMessage.trim()) return;
 
-    const msg: Message = {
-      id: Date.now().toString(),
-      studentId,
-      text: newMessage,
-      date: new Date().toLocaleDateString()
-    };
-
-    const updatedMessages = [...messages, msg];
-    setMessages(updatedMessages);
-    localStorage.setItem('batch26_yearbook_messages', JSON.stringify(updatedMessages));
+    // Use "Anonymous" or prompt (simplified for now)
+    const savedMsg = await dataService.signYearbook(studentId, newMessage, "Anonymous");
+    setMessages([...messages, savedMsg]);
     setNewMessage('');
   };
 
-  const filteredStudents = STUDENTS.filter(student => {
+  const filteredStudents = students.filter(student => {
     const matchesFilter = activeFilter === 'All Majors' || 
                           (activeFilter === 'Science' && student.tags.includes('Science')) ||
                           (activeFilter === 'Arts' && student.tags.includes('Arts')) ||
@@ -54,9 +62,13 @@ export const Yearbook: React.FC = () => {
     return matchesFilter && matchesSearch;
   });
 
-  const getStudentMessages = (studentId: string) => {
-    return messages.filter(m => m.studentId === studentId);
-  };
+  if (loading) {
+      return (
+          <div className="min-h-screen bg-stone-950 flex items-center justify-center">
+              <p className="text-gold-500 font-serif text-xl animate-pulse">Loading Class of '26...</p>
+          </div>
+      );
+  }
 
   return (
     <div className="min-h-screen bg-stone-950 py-32 px-4 md:px-12 relative">
@@ -148,7 +160,7 @@ export const Yearbook: React.FC = () => {
                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
                                         <path d="M21.721 12.752a9.711 9.711 0 00-.945-5.003 12.754 12.754 0 01-4.339 2.708 18.991 18.991 0 01-.214 4.772 17.165 17.165 0 005.498-2.477zM14.634 15.55a17.324 17.324 0 00.332-4.647c-.952.227-1.945.347-2.966.347-1.021 0-2.014-.12-2.966-.347a17.515 17.515 0 00.332 4.647 17.387 17.387 0 005.268 0zM9.772 17.119a18.994 18.994 0 01-4.764-2.093c.23.58.682 1.06 1.24 1.362a17.417 17.417 0 003.524.731zM3.88 12.752c.206.84.524 1.634.936 2.367.924.162 1.86.3 2.805.412-.614-1.502-.932-3.137-.932-4.832 0-1.696.319-3.332.932-4.833-1.464.175-2.853.493-4.148.916a9.719 9.719 0 00.407 5.97zM20.693 8.356c1.23.407 2.348.96 3.307 1.638-.568-1.536-1.506-2.884-2.695-3.929a19.06 19.06 0 01-.612 2.29zM8.303 5.373a19.034 19.034 0 01-2.297-1.298 9.73 9.73 0 00-3.23 3.65 17.067 17.067 0 005.527-2.352zM12.924 3.033a17.126 17.126 0 00-1.848 0 17.525 17.525 0 011.848 0zM17.358 4.075a17.066 17.066 0 00-4.634 1.898c.453 1.05.794 2.152 1.01 3.295a18.98 18.98 0 013.624-5.193z" />
                                       </svg>
-                                      {getStudentMessages(student.id).length}
+                                      {/* Message count to be implemented fully */}
                                    </div>
                                 </div>
                             </div>
@@ -231,9 +243,9 @@ export const Yearbook: React.FC = () => {
                    <div className="flex-grow min-h-[200px] mb-6 space-y-4">
                       <h4 className="text-stone-300 font-serif border-b border-stone-800 pb-2 mb-4">Messages from the Batch</h4>
                       
-                      {getStudentMessages(selectedStudent.id).length > 0 ? (
+                      {messages.length > 0 ? (
                         <div className="space-y-4">
-                           {getStudentMessages(selectedStudent.id).map((msg) => (
+                           {messages.map((msg) => (
                              <div key={msg.id} className="bg-stone-800/50 p-4 rounded-lg border border-stone-800/50 relative">
                                 <p className="font-handwriting text-xl text-stone-200 leading-relaxed">
                                   {msg.text}

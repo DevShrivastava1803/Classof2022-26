@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { ViewState } from './types';
 import { Hero } from './components/Hero';
@@ -7,10 +9,18 @@ import { Yearbook } from './components/Yearbook';
 import { MediaVault } from './components/MediaVault';
 import { MessageWall } from './components/MessageWall';
 import { Footer } from './components/Footer';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthModal } from './components/AuthModal';
+import { DashboardModal } from './components/DashboardModal';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [showNav, setShowNav] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  
+  const { user, loading } = useAuth();
 
   // Simple handler to switch views with a scroll to top
   const handleViewChange = (view: ViewState) => {
@@ -23,27 +33,72 @@ const App: React.FC = () => {
     setShowNav(true);
   };
 
+  const openAuth = (mode: 'login' | 'signup') => {
+      setAuthMode(mode);
+      setShowAuthModal(true);
+  };
+
+  const openProfile = () => {
+      setShowDashboard(true);
+  };
+
   useEffect(() => {
-    if (currentView !== 'home') {
-      setShowNav(true);
+    if (user && showAuthModal) {
+        setShowAuthModal(false);
+        // On successful auth, open dashboard? Or just stay on current view? 
+        // User said "back to the feed". Let's open dashboard modal for them to setup profile, 
+        // then they can close it to see feed.
+        setShowDashboard(true);
+    }
+  }, [user, showAuthModal]);
+
+  useEffect(() => {
+    if (['home', 'dashboard'].includes(currentView)) {
+      setShowNav(false);
     } else {
-        setShowNav(false);
+      setShowNav(true);
     }
   }, [currentView]);
+
+  if (loading) return <div className="min-h-screen bg-stone-900 flex items-center justify-center text-gold-500">Loading...</div>;
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
       
       {/* Navigation - Only visible after leaving home or clicking start */}
       {showNav && (
-        <Navigation currentView={currentView} setView={handleViewChange} />
+        <Navigation 
+            currentView={currentView} 
+            setView={handleViewChange} 
+            onLogin={() => openAuth('login')}
+            onProfile={openProfile}
+            user={user}
+        />
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+          <AuthModal 
+            initialMode={authMode} 
+            onClose={() => setShowAuthModal(false)} 
+            onNavigate={handleViewChange}
+          />
+      )}
+
+      {/* Dashboard Modal */}
+      {showDashboard && (
+          <DashboardModal 
+             onClose={() => setShowDashboard(false)}
+          />
       )}
 
       {/* Main Content Area */}
       <main className="flex-grow">
         {currentView === 'home' && (
-          <Hero onStart={startJourney} />
+          <Hero onStart={startJourney} onLogin={() => openAuth('login')} />
         )}
+
+        {/* Removed Dashboard Page Route */}
 
         {currentView === 'timeline' && (
           <div className="animate-fade-in">
@@ -82,9 +137,17 @@ const App: React.FC = () => {
       </main>
 
       {/* Footer - Only visible on content pages */}
-      {currentView !== 'home' && <Footer />}
+      {!['home', 'login', 'signup', 'dashboard'].includes(currentView) && <Footer />}
     </div>
   );
+};
+
+const App: React.FC = () => {
+    return (
+        <AuthProvider>
+            <AppContent />
+        </AuthProvider>
+    );
 };
 
 export default App;

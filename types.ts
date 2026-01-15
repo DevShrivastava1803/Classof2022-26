@@ -1,4 +1,4 @@
-export type ViewState = 'home' | 'timeline' | 'yearbook' | 'vault' | 'wall';
+export type ViewState = 'home' | 'timeline' | 'yearbook' | 'vault' | 'wall' | 'login' | 'signup' | 'dashboard';
 
 export interface Student {
   id: string;

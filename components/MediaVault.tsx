@@ -1,15 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FadeIn } from './ui/FadeIn';
-import { VAULT_ITEMS } from '../constants';
+import { VaultItem } from '../types';
+import { dataService } from '../services/DataRegistry';
+import { useAuth } from '../context/AuthContext';
 
-const FILTERS = ['All Memories', 'Freshman', 'Sophomore', 'Junior', 'Convocation', 'Videos'];
+const FILTERS = ['All Memories', 'Freshman', 'Sophomore', 'Junior', 'Convocation', 'User Upload'];
 
 export const MediaVault: React.FC = () => {
+  const [items, setItems] = useState<VaultItem[]>([]);
   const [activeFilter, setActiveFilter] = useState('All Memories');
+  const [loading, setLoading] = useState(true);
+  
+  const { user } = useAuth();
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadCaption, setUploadCaption] = useState('');
+  const [uploadLoading, setUploadLoading] = useState(false);
 
-  const filteredItems = activeFilter === 'All Memories' 
-    ? VAULT_ITEMS 
-    : VAULT_ITEMS.filter(item => item.tags.includes(activeFilter));
+  useEffect(() => {
+    const fetchMedia = async () => {
+        setLoading(true);
+        const data = await dataService.getMedia();
+        setItems(data);
+        setLoading(false);
+    };
+    fetchMedia();
+  }, []);
+
+  const handleUploadClick = () => {
+      // Trigger hidden file input
+      document.getElementById('vault-upload-input')?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          setUploadFile(e.target.files[0]);
+          setIsUploading(true);
+      }
+  };
+
+  const performUpload = async () => {
+      if (!uploadFile || !user) return;
+      setUploadLoading(true);
+      
+      try {
+          const newItem = await dataService.uploadMedia(uploadFile, uploadCaption, user);
+          setItems([newItem, ...items]);
+          setIsUploading(false);
+          setUploadCaption('');
+          setUploadFile(null);
+      } catch (error) {
+          console.error("Upload failed", error);
+          alert("Simulation: Upload failed.");
+      } finally {
+          setUploadLoading(false);
+      }
+  };
+
+  const filteredItems = items.filter(item => {
+      if (activeFilter === 'All Memories') return true;
+      return item.tags.includes(activeFilter);
+  });
+
+  if (loading) return <div className="text-center py-20 text-gold-500">Loading Vault...</div>;
 
   return (
     <div className="min-h-screen bg-stone-950 py-32 px-4 md:px-12 relative overflow-hidden">
@@ -32,12 +85,35 @@ export const MediaVault: React.FC = () => {
             </FadeIn>
           </div>
           <FadeIn delay={200}>
-            <button className="group flex items-center gap-2 px-6 py-3 bg-transparent border border-stone-700 hover:border-gold-500 hover:bg-stone-900 rounded-full transition-all duration-300">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gold-500 group-hover:rotate-180 transition-transform duration-500">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-              </svg>
-              <span className="text-stone-200 font-medium text-sm tracking-wide group-hover:text-gold-500">Random Moment</span>
-            </button>
+            <div className="flex gap-4">
+                <button className="group flex items-center gap-2 px-6 py-3 bg-transparent border border-stone-700 hover:border-gold-500 hover:bg-stone-900 rounded-full transition-all duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gold-500 group-hover:rotate-180 transition-transform duration-500">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                <span className="text-stone-200 font-medium text-sm tracking-wide group-hover:text-gold-500">Random Moment</span>
+                </button>
+                
+                {user && (
+                    <>
+                        <input 
+                            type="file" 
+                            id="vault-upload-input" 
+                            className="hidden" 
+                            accept="image/*,video/*"
+                            onChange={handleFileChange} 
+                        />
+                        <button 
+                            onClick={handleUploadClick}
+                            className="flex items-center gap-2 px-6 py-3 bg-gold-600 border border-gold-600 hover:bg-gold-500 rounded-full transition-colors text-stone-900 font-bold"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            <span>Upload</span>
+                        </button>
+                    </>
+                )}
+            </div>
           </FadeIn>
         </div>
 
@@ -58,6 +134,45 @@ export const MediaVault: React.FC = () => {
                 </FadeIn>
             ))}
         </div>
+
+        {/* Upload Modal */}
+        {isUploading && (
+           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+              <div className="bg-stone-900 border border-stone-700 max-w-lg w-full rounded-lg p-6 shadow-2xl relative">
+                   <h3 className="text-2xl font-serif text-stone-200 mb-4">Add to Vault</h3>
+                   <div className="mb-4">
+                       {uploadFile && (
+                           <div className="bg-stone-800 p-2 rounded text-sm text-stone-400 truncate">
+                               {uploadFile.name}
+                           </div>
+                       )}
+                   </div>
+                   <input
+                       type="text"
+                       placeholder="Add a caption..."
+                       value={uploadCaption}
+                       onChange={(e) => setUploadCaption(e.target.value)}
+                       className="w-full bg-stone-950 border border-stone-800 rounded p-3 text-stone-200 focus:border-gold-500 focus:outline-none mb-6"
+                       autoFocus
+                   />
+                   <div className="flex justify-end gap-3">
+                       <button 
+                          onClick={() => { setIsUploading(false); setUploadFile(null); }}
+                          className="px-4 py-2 text-stone-400 hover:text-white"
+                       >
+                           Cancel
+                       </button>
+                       <button 
+                          onClick={performUpload}
+                          disabled={uploadLoading}
+                          className="px-6 py-2 bg-gold-600 text-stone-900 font-bold rounded hover:bg-gold-500 disabled:opacity-50"
+                       >
+                           {uploadLoading ? 'Uploading...' : 'Post to Vault'}
+                       </button>
+                   </div>
+              </div>
+           </div>
+        )}
 
         {/* Masonry Grid */}
         <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">

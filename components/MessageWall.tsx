@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FadeIn } from './ui/FadeIn';
-import { WALL_MESSAGES } from '../constants';
 import { WallMessage } from '../types';
+import { dataService } from '../services/DataRegistry';
+import { useAuth } from '../context/AuthContext';
 
 // Paper styles for the sticky notes
 const PAPER_STYLES = {
@@ -16,46 +17,52 @@ export const MessageWall: React.FC = () => {
   const [isWriting, setIsWriting] = useState(false);
   const [newMessageText, setNewMessageText] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Merge constant mock data with local storage
-    const saved = localStorage.getItem('wall_messages_v1');
-    const localMessages = saved ? JSON.parse(saved) : [];
-    setMessages([...WALL_MESSAGES, ...localMessages]);
+    // If user is logged in, auto-fill name
+    if (user) {
+        setAuthorName(user.name);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+        setLoading(true);
+        const msgs = await dataService.getMessages();
+        setMessages(msgs);
+        setLoading(false);
+    };
+    fetchMessages();
   }, []);
 
-  const handlePostMessage = () => {
-    if (!newMessageText.trim() || !authorName.trim()) return;
+  const handlePostMessage = async () => {
+    if (!newMessageText.trim()) return;
+    
+    // Fallback name
+    const finalAuthor = authorName.trim() || "Anonymous";
 
     const styles: ('paper-1' | 'paper-2' | 'paper-3' | 'paper-4')[] = ['paper-1', 'paper-2', 'paper-3', 'paper-4'];
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-    const rotations = ['rotate-1', '-rotate-1', 'rotate-2', '-rotate-2'];
-    const randomRotation = rotations[Math.floor(Math.random() * rotations.length)];
-    const tapeRotations = ['rotate-1', '-rotate-1', 'rotate-3', '-rotate-2'];
-    const randomTape = tapeRotations[Math.floor(Math.random() * tapeRotations.length)];
-
-    const newMessage: WallMessage = {
-      id: Date.now().toString(),
-      text: newMessageText,
-      author: authorName,
-      date: 'Just now',
-      style: randomStyle,
-      rotation: randomRotation,
-      tapeRotation: randomTape,
-    };
-
-    const updated = [newMessage, ...messages];
-    setMessages(updated);
     
-    // Save only user generated messages to local storage to avoid duplicating constants
-    const saved = localStorage.getItem('wall_messages_v1');
-    const localMessages = saved ? JSON.parse(saved) : [];
-    localStorage.setItem('wall_messages_v1', JSON.stringify([newMessage, ...localMessages]));
+    const newMsg = await dataService.postMessage({
+        text: newMessageText,
+        author: finalAuthor,
+        style: randomStyle,
+        major: user?.name === finalAuthor ? 'Student' : undefined
+    });
+
+    // Update local state immediately (or rely on refetch if needed)
+    setMessages([newMsg, ...messages]);
 
     setIsWriting(false);
     setNewMessageText('');
-    setAuthorName('');
+    // Keep author name if logged in, otherwise clear
+    if (!user) setAuthorName('');
   };
+
+  if (loading) return <div className="text-center py-20 text-gold-500">Loading Wall...</div>;
 
   return (
     <div className="min-h-screen bg-[#0f172a] font-sans py-32 px-4 md:px-6 relative overflow-x-hidden selection:bg-gold-500 selection:text-white">
@@ -100,10 +107,11 @@ export const MessageWall: React.FC = () => {
               />
               <input 
                  type="text"
-                 placeholder="Your Name"
+                 placeholder="Your Name (Optional)"
                  className="w-full mt-4 bg-transparent border-b-2 border-stone-200 focus:border-gold-500 focus:outline-none font-sans text-stone-800 p-2 placeholder:text-stone-400"
                  value={authorName}
                  onChange={(e) => setAuthorName(e.target.value)}
+                 disabled={!!user} // Disable if logged in, maybe? Or allow override. Let's allow override for now or keeping it simple.
               />
               <div className="mt-6 flex justify-end">
                  <button 

@@ -3,9 +3,10 @@ import { ViewState } from '../types';
 
 interface HeroProps {
   onStart: () => void;
+  onLogin: () => void;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onStart }) => {
+export const Hero: React.FC<HeroProps> = ({ onStart, onLogin }) => {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -22,6 +23,16 @@ export const Hero: React.FC<HeroProps> = ({ onStart }) => {
       {/* Abstract blurred shapes for that "University of Design" look */}
       <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-gold-600/10 rounded-full blur-[120px] animate-pulse"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-blue-900/10 rounded-full blur-[100px]"></div>
+
+      {/* Top Right Login */}
+      <div className="absolute top-6 right-6 z-20">
+          <button 
+             onClick={onLogin}
+             className={`px-5 py-2 text-xs font-bold uppercase tracking-wider bg-white/5 hover:bg-gold-500 hover:text-stone-900 border border-white/10 rounded-full transition-all duration-1000 delay-1000 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          >
+             Student Login
+          </button>
+      </div>
 
       <div className="relative z-10 flex flex-col items-center text-center px-4 max-w-5xl">
         <p className={`font-serif italic text-gold-500 text-xl md:text-2xl mb-6 tracking-wide transition-all duration-1000 delay-300 transform ${loaded ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
